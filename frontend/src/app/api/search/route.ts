@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
         location: params?.location || '',
         problemSignals: params?.problemSignals || [],
         customSignals: params?.customSignals || '',
+        sources: params?.sources || ['reddit'],
         timestamp: new Date().toISOString(),
       }),
     });
@@ -103,6 +104,9 @@ function getMockLeads(params: { industry?: string; location?: string } | null) {
       source: 'Reddit',
       source_url: 'https://reddit.com/r/smallbusiness',
       found_at: new Date().toISOString(),
+      email: 'info@example-solutions.com',
+      phone: '+260 97 1234567',
+      company_website: 'https://example-solutions.com',
     },
     {
       id: 'mock-2',
@@ -116,9 +120,12 @@ function getMockLeads(params: { industry?: string; location?: string } | null) {
       confidence_score: 72,
       urgency: 'medium' as const,
       outreach_suggestion: 'I took a look at your social media presence and noticed your creatives could use a professional upgrade. We specialize in motion graphics that boost engagement by 3-5x. Interested in seeing some examples?',
-      source: 'LinkedIn',
+      source: 'Google',
       source_url: null,
       found_at: new Date().toISOString(),
+      email: 'hello@growthpath.co',
+      phone: null,
+      company_website: 'https://growthpath.co',
     },
     {
       id: 'mock-3',
@@ -135,6 +142,9 @@ function getMockLeads(params: { industry?: string; location?: string } | null) {
       source: 'Job Board',
       source_url: null,
       found_at: new Date().toISOString(),
+      email: null,
+      phone: '+260 96 7654321',
+      company_website: null,
     },
   ];
 }

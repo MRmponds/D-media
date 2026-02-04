@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Building2, MapPin, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Search, Building2, MapPin, AlertTriangle, ChevronDown, Globe, Lock } from 'lucide-react';
 
 export interface SearchParams {
   industry: string;
@@ -9,6 +9,7 @@ export interface SearchParams {
   location: string;
   problemSignals: string[];
   customSignals: string;
+  sources: string[];
 }
 
 interface SearchFormProps {
@@ -54,12 +55,22 @@ const PROBLEM_SIGNALS = [
   { id: 'competitor_complaints', label: 'Complaining about competitors', icon: '😤' },
 ];
 
+const SOURCES = [
+  { id: 'reddit', label: 'Reddit', icon: '🟠', available: true },
+  { id: 'google', label: 'Google Search', icon: '🟢', available: true },
+  { id: 'twitter', label: 'Twitter / X', icon: '⚫', available: true },
+  { id: 'jobboards', label: 'Job Boards', icon: '💼', available: true },
+  { id: 'linkedin', label: 'LinkedIn', icon: '🔵', available: false, tag: 'Pro' },
+  { id: 'facebook', label: 'Facebook', icon: '🔷', available: false, tag: 'Pro' },
+];
+
 export default function SearchForm({ onChange, loading }: SearchFormProps) {
   const [industry, setIndustry] = useState('Any Industry');
   const [businessSize, setBusinessSize] = useState('any');
   const [location, setLocation] = useState('');
   const [selectedSignals, setSelectedSignals] = useState<string[]>(['no_leads', 'bad_ads']);
   const [customSignals, setCustomSignals] = useState('');
+  const [selectedSources, setSelectedSources] = useState<string[]>(['reddit', 'google']);
   const [expanded, setExpanded] = useState(true);
   const mounted = useRef(false);
 
@@ -71,14 +82,26 @@ export default function SearchForm({ onChange, loading }: SearchFormProps) {
       location,
       problemSignals: selectedSignals,
       customSignals,
+      sources: selectedSources,
     });
     mounted.current = true;
-  }, [industry, businessSize, location, selectedSignals, customSignals]);
+  }, [industry, businessSize, location, selectedSignals, customSignals, selectedSources]);
 
   function toggleSignal(id: string) {
     setSelectedSignals((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
+  }
+
+  function toggleSource(id: string) {
+    setSelectedSources((prev) => {
+      if (prev.includes(id)) {
+        // Don't allow deselecting all sources
+        if (prev.length <= 1) return prev;
+        return prev.filter((s) => s !== id);
+      }
+      return [...prev, id];
+    });
   }
 
   return (
@@ -98,7 +121,7 @@ export default function SearchForm({ onChange, loading }: SearchFormProps) {
               Define Your Ideal Client
             </h2>
             <p className="text-xs text-[var(--text-tertiary)]">
-              Specify industry, location, and pain signals to find
+              Specify industry, location, sources, and pain signals to find
             </p>
           </div>
         </div>
@@ -153,6 +176,38 @@ export default function SearchForm({ onChange, loading }: SearchFormProps) {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Sources to scrape */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] mb-2.5">
+              <Globe size={13} /> Sources to Search
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+              {SOURCES.map((source) => (
+                <button
+                  key={source.id}
+                  type="button"
+                  onClick={() => source.available && toggleSource(source.id)}
+                  disabled={!source.available}
+                  className={`relative flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium border transition-all text-left
+                    ${!source.available
+                      ? 'border-[var(--border-primary)] text-[var(--text-tertiary)] opacity-60 cursor-not-allowed'
+                      : selectedSources.includes(source.id)
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-700'
+                        : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                >
+                  <span>{source.icon}</span>
+                  <span>{source.label}</span>
+                  {!source.available && source.tag && (
+                    <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 flex items-center gap-0.5">
+                      <Lock size={7} /> {source.tag}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 

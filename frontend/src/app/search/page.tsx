@@ -12,6 +12,7 @@ export default function SearchPage() {
     location: '',
     problemSignals: ['no_leads', 'bad_ads'],
     customSignals: '',
+    sources: ['reddit', 'google'],
   });
   const [results, setResults] = useState<LeadResult[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
@@ -61,21 +62,23 @@ export default function SearchPage() {
     if (results.length === 0) return;
 
     const headers = [
-      'Company', 'Industry', 'Location', 'Confidence Score', 'Urgency',
-      'Detected Problem', 'Pain Summary', 'Outreach Suggestion',
-      'Website', 'Source', 'Source URL', 'Found At',
+      'Company', 'Industry', 'Location', 'Email', 'Phone', 'Website',
+      'Confidence Score', 'Urgency', 'Detected Problem', 'Pain Summary',
+      'Outreach Suggestion', 'Source', 'Source URL', 'Found At',
     ];
 
     const rows = results.map((lead) => [
       lead.company_name,
       lead.industry,
       lead.location || '',
+      lead.email || '',
+      lead.phone || '',
+      lead.company_website || lead.website || '',
       lead.confidence_score.toString(),
       lead.urgency,
       lead.detected_problem,
       lead.pain_summary,
       lead.outreach_suggestion,
-      lead.website || '',
       lead.source,
       lead.source_url || '',
       lead.found_at,
