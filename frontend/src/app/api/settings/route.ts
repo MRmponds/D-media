@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/settings - Get all settings
 export async function GET() {
   const supabase = createServerClient();
