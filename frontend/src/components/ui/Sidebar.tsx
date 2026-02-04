@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
+  Search,
   Settings,
   Sun,
   Moon,
@@ -19,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/search', label: 'Find Clients', icon: Search },
   { href: '/leads', label: 'Leads', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
