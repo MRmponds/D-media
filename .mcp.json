@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["n8n-mcp"],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "https://esy-pnl-n8n-n8n.jmb6bn.easypanel.host",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMjU1ZGUxOC1mMzhhLTRiNTQtOGJiYy1kZDhlNDM4ZmY2ZmQiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzcwMDQzMzgwfQ.iZIqPKdmeQ8HwLewI4jt_X_1fXZM5bLA769B2A7h7-o"
+      }
+    }
+  }
+}
