@@ -1,26 +1,27 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useRef, useState } from 'react';
 import SearchForm, { SearchParams } from '@/components/search/SearchForm';
 import ActionButtons from '@/components/search/ActionButtons';
 import ResultsTable, { LeadResult } from '@/components/search/ResultsTable';
 
 export default function SearchPage() {
-  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
+  const searchParamsRef = useRef<SearchParams>({
+    industry: '',
+    businessSize: 'any',
+    location: '',
+    problemSignals: ['no_leads', 'bad_ads'],
+    customSignals: '',
+  });
   const [results, setResults] = useState<LeadResult[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = useCallback((params: SearchParams) => {
-    setSearchParams(params);
-    setError(null);
-  }, []);
+  function handleParamsChange(params: SearchParams) {
+    searchParamsRef.current = params;
+  }
 
   async function callWebhook(action: string) {
-    if (!searchParams && action !== 'export') {
-      setError('Please define your search criteria first.');
-      return;
-    }
 
     setLoading(action);
     setError(null);
@@ -31,7 +32,7 @@ export default function SearchPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          params: searchParams,
+          params: searchParamsRef.current,
         }),
       });
 
@@ -111,7 +112,7 @@ export default function SearchPage() {
       </div>
 
       {/* Search form */}
-      <SearchForm onSearch={handleSearch} loading={loading !== null} />
+      <SearchForm onChange={handleParamsChange} loading={loading !== null} />
 
       {/* Action buttons */}
       <ActionButtons

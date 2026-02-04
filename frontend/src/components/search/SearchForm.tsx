@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Building2, MapPin, AlertTriangle, ChevronDown } from 'lucide-react';
 
 export interface SearchParams {
@@ -12,7 +12,7 @@ export interface SearchParams {
 }
 
 interface SearchFormProps {
-  onSearch: (params: SearchParams) => void;
+  onChange: (params: SearchParams) => void;
   loading: boolean;
 }
 
@@ -54,13 +54,26 @@ const PROBLEM_SIGNALS = [
   { id: 'competitor_complaints', label: 'Complaining about competitors', icon: '😤' },
 ];
 
-export default function SearchForm({ onSearch, loading }: SearchFormProps) {
+export default function SearchForm({ onChange, loading }: SearchFormProps) {
   const [industry, setIndustry] = useState('Any Industry');
   const [businessSize, setBusinessSize] = useState('any');
   const [location, setLocation] = useState('');
   const [selectedSignals, setSelectedSignals] = useState<string[]>(['no_leads', 'bad_ads']);
   const [customSignals, setCustomSignals] = useState('');
   const [expanded, setExpanded] = useState(true);
+  const mounted = useRef(false);
+
+  // Push current values to parent on every change
+  useEffect(() => {
+    onChange({
+      industry: industry === 'Any Industry' ? '' : industry,
+      businessSize,
+      location,
+      problemSignals: selectedSignals,
+      customSignals,
+    });
+    mounted.current = true;
+  }, [industry, businessSize, location, selectedSignals, customSignals]);
 
   function toggleSignal(id: string) {
     setSelectedSignals((prev) =>
@@ -68,19 +81,8 @@ export default function SearchForm({ onSearch, loading }: SearchFormProps) {
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSearch({
-      industry: industry === 'Any Industry' ? '' : industry,
-      businessSize,
-      location,
-      problemSignals: selectedSignals,
-      customSignals,
-    });
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="card">
+    <div className="card">
       {/* Header */}
       <button
         type="button"
@@ -193,6 +195,6 @@ export default function SearchForm({ onSearch, loading }: SearchFormProps) {
           </div>
         </div>
       )}
-    </form>
+    </div>
   );
 }
