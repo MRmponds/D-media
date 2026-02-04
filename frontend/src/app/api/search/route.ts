@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,21 +12,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'action is required' }, { status: 400 });
     }
 
-    // Get the webhook URL from settings table
-    const supabase = createServerClient();
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('key, value')
-      .in('key', ['n8n_webhook_find', 'n8n_webhook_scrape', 'n8n_webhook_analyze']);
-
-    const settingsMap: Record<string, string> = {};
-    if (settings) {
-      for (const s of settings) {
-        settingsMap[s.key] = s.value;
+    // Try reading webhook URLs from Supabase settings, fall back to env vars
+    let settingsMap: Record<string, string> = {};
+    try {
+      const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supaUrl && supaKey) {
+        const { createServerClient } = await import('@/lib/supabase');
+        const supabase = createServerClient();
+        const { data: settings } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['n8n_webhook_find', 'n8n_webhook_scrape', 'n8n_webhook_analyze']);
+        if (settings) {
+          for (const s of settings) {
+            settingsMap[s.key] = s.value;
+          }
+        }
       }
+    } catch {
+      // Supabase not available — that's fine, use env vars
     }
 
-    // Also check environment variables as fallback
     const webhookUrls: Record<string, string> = {
       find: settingsMap['n8n_webhook_find'] || process.env.N8N_WEBHOOK_FIND || '',
       scrape: settingsMap['n8n_webhook_scrape'] || process.env.N8N_WEBHOOK_SCRAPE || '',
