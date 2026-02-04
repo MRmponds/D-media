@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import type { Lead, LeadStatus } from '@/lib/types';
 import { PLATFORM_CONFIG, STATUS_CONFIG, getScoreBucket, SCORE_COLORS } from '@/lib/types';
 import { formatDateTime } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 import {
   ArrowLeft, ExternalLink, Copy, Check, MessageSquare,
   Calendar, Tag, User, Globe, FileText, Brain, Mail,
@@ -296,7 +297,7 @@ function DetailRow({
   label,
   value,
 }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
