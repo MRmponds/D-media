@@ -53,9 +53,9 @@ export default function ScoreChart({ data }: ScoreChartProps) {
               borderRadius: '8px',
               fontSize: '12px',
             }}
-            formatter={(value: number, _name: string, props: { payload: ScoreDistribution }) => [
-              `${value} leads (${props.payload.percentage}%)`,
-              props.payload.score_bucket,
+            formatter={(value: number, _name: string, props: { payload?: ScoreDistribution }) => [
+              `${value} leads (${props.payload?.percentage ?? 0}%)`,
+              props.payload?.score_bucket ?? '',
             ]}
           />
           <Legend
