@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Building2, MapPin, AlertTriangle, ChevronDown, Globe, Lock } from 'lucide-react';
+import { Search, Building2, MapPin, AlertTriangle, ChevronDown, Globe } from 'lucide-react';
 
 export interface SearchParams {
   industry: string;
@@ -57,11 +57,11 @@ const PROBLEM_SIGNALS = [
 
 const SOURCES = [
   { id: 'reddit', label: 'Reddit', icon: '🟠', available: true },
-  { id: 'google', label: 'Google Search', icon: '🟢', available: true },
-  { id: 'twitter', label: 'Twitter / X', icon: '⚫', available: true },
-  { id: 'jobboards', label: 'Job Boards', icon: '💼', available: true },
-  { id: 'linkedin', label: 'LinkedIn', icon: '🔵', available: false, tag: 'Pro' },
-  { id: 'facebook', label: 'Facebook', icon: '🔷', available: false, tag: 'Pro' },
+  { id: 'fiverr', label: 'Fiverr', icon: '🟢', available: true },
+  { id: 'gozambiajobs', label: 'GoZambiaJobs', icon: '💼', available: true },
+  { id: 'google', label: 'Google', icon: '🔍', available: true },
+  { id: 'linkedin', label: 'LinkedIn', icon: '🔵', available: true, tag: 'Apollo' },
+  { id: 'facebook', label: 'Facebook', icon: '🔷', available: true, tag: 'Apollo' },
 ];
 
 export default function SearchForm({ onChange, loading }: SearchFormProps) {
@@ -70,7 +70,7 @@ export default function SearchForm({ onChange, loading }: SearchFormProps) {
   const [location, setLocation] = useState('');
   const [selectedSignals, setSelectedSignals] = useState<string[]>(['no_leads', 'bad_ads']);
   const [customSignals, setCustomSignals] = useState('');
-  const [selectedSources, setSelectedSources] = useState<string[]>(['reddit', 'google']);
+  const [selectedSources, setSelectedSources] = useState<string[]>(['reddit', 'fiverr', 'gozambiajobs']);
   const [expanded, setExpanded] = useState(true);
   const mounted = useRef(false);
 
@@ -189,21 +189,18 @@ export default function SearchForm({ onChange, loading }: SearchFormProps) {
                 <button
                   key={source.id}
                   type="button"
-                  onClick={() => source.available && toggleSource(source.id)}
-                  disabled={!source.available}
+                  onClick={() => toggleSource(source.id)}
                   className={`relative flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium border transition-all text-left
-                    ${!source.available
-                      ? 'border-[var(--border-primary)] text-[var(--text-tertiary)] opacity-60 cursor-not-allowed'
-                      : selectedSources.includes(source.id)
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-700'
-                        : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                    ${selectedSources.includes(source.id)
+                      ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-700'
+                      : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
                 >
                   <span>{source.icon}</span>
                   <span>{source.label}</span>
-                  {!source.available && source.tag && (
-                    <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 flex items-center gap-0.5">
-                      <Lock size={7} /> {source.tag}
+                  {source.tag && (
+                    <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+                      {source.tag}
                     </span>
                   )}
                 </button>

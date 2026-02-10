@@ -1,79 +1,168 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  scrapeReddit,
+  scrapeApollo,
+  scrapeFiverr,
+  scrapeGoZambiaJobs,
+  scrapeGoogle,
+  RawLead,
+} from '@/lib/scrapers';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow up to 60s for scraping
 
-// POST /api/search - Trigger n8n webhook workflows
+interface SearchParams {
+  industry?: string;
+  businessSize?: string;
+  location?: string;
+  problemSignals?: string[];
+  customSignals?: string;
+  sources?: string[];
+}
+
+// Build search keywords from user params
+function buildKeywords(params: SearchParams): string {
+  const signalMap: Record<string, string> = {
+    no_leads: 'need clients OR no leads OR struggling to find customers',
+    low_conversions: 'low conversion OR poor sales',
+    no_marketing: 'no marketing OR need marketing help',
+    looking_for_clients: 'looking for clients OR need customers',
+    bad_ads: 'bad ads OR poor creatives',
+    hiring_marketing: 'hiring marketing OR need designer',
+    weak_branding: 'no website OR need branding',
+    competitor_complaints: 'competitor OR falling behind',
+  };
+
+  const signals = (params.problemSignals || ['no_leads'])
+    .map((s) => signalMap[s] || s)
+    .join(' OR ');
+
+  const custom = params.customSignals || '';
+  const industry = params.industry || '';
+
+  return [signals, custom, industry].filter(Boolean).join(' ');
+}
+
+// POST /api/search — Direct scraping, no n8n dependency
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, params } = body;
+    const { action, params } = body as { action: string; params: SearchParams };
 
     if (!action) {
       return NextResponse.json({ error: 'action is required' }, { status: 400 });
     }
 
-    // Try reading webhook URLs from Supabase settings, fall back to env vars
-    let settingsMap: Record<string, string> = {};
-    try {
-      const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (supaUrl && supaKey) {
-        const { createServerClient } = await import('@/lib/supabase');
-        const supabase = createServerClient();
-        const { data: settings } = await supabase
-          .from('settings')
-          .select('key, value')
-          .in('key', ['n8n_webhook_find', 'n8n_webhook_scrape', 'n8n_webhook_analyze']);
-        if (settings) {
-          for (const s of settings) {
-            settingsMap[s.key] = s.value;
-          }
-        }
+    const sources = params?.sources || ['reddit'];
+    const keywords = buildKeywords(params || {});
+    const industry = params?.industry || '';
+    const location = params?.location || '';
+    const apolloKey = process.env.APOLLO_API_KEY || '';
+
+    // Run all selected scrapers in parallel
+    const scraperPromises: Promise<RawLead[]>[] = [];
+    const sourceNames: string[] = [];
+
+    if (sources.includes('reddit')) {
+      scraperPromises.push(scrapeReddit(keywords, industry));
+      sourceNames.push('Reddit');
+    }
+    if (sources.includes('fiverr')) {
+      scraperPromises.push(scrapeFiverr(keywords, industry));
+      sourceNames.push('Fiverr');
+    }
+    if (sources.includes('gozambiajobs')) {
+      scraperPromises.push(scrapeGoZambiaJobs(keywords, industry));
+      sourceNames.push('GoZambiaJobs');
+    }
+    if (sources.includes('google')) {
+      scraperPromises.push(scrapeGoogle(keywords, industry, location));
+      sourceNames.push('Google');
+    }
+    if (sources.includes('linkedin') || sources.includes('facebook')) {
+      if (apolloKey) {
+        scraperPromises.push(scrapeApollo(keywords, industry, location, apolloKey));
+        sourceNames.push('Apollo (LinkedIn/Facebook)');
+      } else {
+        // No API key — return helpful message
+        scraperPromises.push(
+          Promise.resolve([
+            {
+              id: 'apollo-setup',
+              title: 'Apollo.io API key needed for LinkedIn/Facebook',
+              body: 'Add APOLLO_API_KEY to your Vercel environment variables. Get a free key at https://app.apollo.io — Settings > API Keys.',
+              author: 'System',
+              source: 'LinkedIn',
+              source_url: 'https://app.apollo.io',
+              found_at: new Date().toISOString(),
+              email: null,
+              phone: null,
+              company_website: null,
+            },
+          ])
+        );
+        sourceNames.push('Apollo (needs API key)');
       }
-    } catch {
-      // Supabase not available — that's fine, use env vars
     }
 
-    const webhookUrls: Record<string, string> = {
-      find: settingsMap['n8n_webhook_find'] || process.env.N8N_WEBHOOK_FIND || '',
-      scrape: settingsMap['n8n_webhook_scrape'] || process.env.N8N_WEBHOOK_SCRAPE || '',
-      analyze: settingsMap['n8n_webhook_analyze'] || process.env.N8N_WEBHOOK_ANALYZE || '',
-    };
-
-    const webhookUrl = webhookUrls[action];
-
-    if (!webhookUrl) {
-      // If no webhook URL configured, return mock data for testing
-      return NextResponse.json({
-        leads: getMockLeads(params),
-        message: `No webhook URL configured for "${action}". Showing sample data. Add the URL in Settings or set N8N_WEBHOOK_${action.toUpperCase()} env var.`,
-      });
+    // If no sources selected, default to Reddit
+    if (scraperPromises.length === 0) {
+      scraperPromises.push(scrapeReddit(keywords, industry));
+      sourceNames.push('Reddit');
     }
 
-    // Call the n8n webhook
-    const webhookResponse = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        industry: params?.industry || '',
-        businessSize: params?.businessSize || 'any',
-        location: params?.location || '',
-        problemSignals: params?.problemSignals || [],
-        customSignals: params?.customSignals || '',
-        sources: params?.sources || ['reddit'],
-        timestamp: new Date().toISOString(),
-      }),
+    // Run all scrapers in parallel
+    const results = await Promise.allSettled(scraperPromises);
+
+    // Collect all leads
+    const allLeads: RawLead[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        allLeads.push(...result.value);
+      } else {
+        console.error(`Scraper ${sourceNames[i]} failed:`, result.reason);
+      }
+    }
+
+    // Format leads for the frontend
+    const formattedLeads = allLeads.map((lead) => ({
+      id: lead.id,
+      company_name: lead.author || 'Unknown',
+      website: lead.company_website,
+      profile_url: lead.source_url,
+      industry: industry || 'General',
+      location: location || null,
+      detected_problem: 'looking_for_clients',
+      pain_summary: lead.body?.substring(0, 400) || lead.title,
+      confidence_score: lead.email ? 75 : lead.phone ? 70 : lead.company_website ? 60 : 45,
+      urgency: (lead.email || lead.phone) ? 'high' as const : 'medium' as const,
+      outreach_suggestion: `Hi ${lead.author}! I came across your profile and noticed you might benefit from professional graphic design and motion graphics services. Would you be open to a quick chat about how we can help grow your brand?`,
+      source: lead.source,
+      source_url: lead.source_url,
+      found_at: lead.found_at,
+      email: lead.email,
+      phone: lead.phone,
+      company_website: lead.company_website,
+    }));
+
+    // Sort: leads with contact info first, then by source diversity
+    formattedLeads.sort((a, b) => {
+      const aScore = (a.email ? 30 : 0) + (a.phone ? 25 : 0) + (a.company_website ? 15 : 0);
+      const bScore = (b.email ? 30 : 0) + (b.phone ? 25 : 0) + (b.company_website ? 15 : 0);
+      return bScore - aScore;
     });
 
-    if (!webhookResponse.ok) {
-      throw new Error(`n8n webhook returned ${webhookResponse.status}`);
-    }
-
-    const result = await webhookResponse.json();
-
-    // n8n should return { leads: [...] }
-    return NextResponse.json(result);
+    return NextResponse.json({
+      leads: formattedLeads,
+      meta: {
+        total: formattedLeads.length,
+        sources: sourceNames,
+        withEmail: formattedLeads.filter((l) => l.email).length,
+        withPhone: formattedLeads.filter((l) => l.phone).length,
+        scrapedAt: new Date().toISOString(),
+      },
+    });
   } catch (err) {
     console.error('Search API error:', err);
     return NextResponse.json(
@@ -81,70 +170,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Mock data for when webhooks aren't configured yet
-function getMockLeads(params: { industry?: string; location?: string } | null) {
-  const industry = params?.industry || 'General Business';
-  const location = params?.location || 'Global';
-
-  return [
-    {
-      id: 'mock-1',
-      company_name: `${industry} Solutions Ltd`,
-      website: 'https://example.com',
-      profile_url: null,
-      industry: industry || 'General',
-      location,
-      detected_problem: 'no_leads',
-      pain_summary: 'Company posted on Reddit asking for help getting more clients. They mentioned struggling with online visibility and declining foot traffic.',
-      confidence_score: 87,
-      urgency: 'high' as const,
-      outreach_suggestion: `Hi! I noticed you mentioned struggling with client acquisition. At D-Media, we create high-converting motion graphics and ad creatives that help ${industry.toLowerCase()} businesses stand out. Would you be open to a quick chat?`,
-      source: 'Reddit',
-      source_url: 'https://reddit.com/r/smallbusiness',
-      found_at: new Date().toISOString(),
-      email: 'info@example-solutions.com',
-      phone: '+260 97 1234567',
-      company_website: 'https://example-solutions.com',
-    },
-    {
-      id: 'mock-2',
-      company_name: 'GrowthPath Marketing',
-      website: 'https://example.com',
-      profile_url: null,
-      industry: industry || 'Marketing',
-      location,
-      detected_problem: 'bad_ads',
-      pain_summary: 'Their current ad creatives are low quality stock photos with generic copy. Social media engagement is very low despite regular posting.',
-      confidence_score: 72,
-      urgency: 'medium' as const,
-      outreach_suggestion: 'I took a look at your social media presence and noticed your creatives could use a professional upgrade. We specialize in motion graphics that boost engagement by 3-5x. Interested in seeing some examples?',
-      source: 'Google',
-      source_url: null,
-      found_at: new Date().toISOString(),
-      email: 'hello@growthpath.co',
-      phone: null,
-      company_website: 'https://growthpath.co',
-    },
-    {
-      id: 'mock-3',
-      company_name: 'QuickServe Restaurants',
-      website: null,
-      profile_url: null,
-      industry: 'Restaurants & Food',
-      location,
-      detected_problem: 'no_marketing',
-      pain_summary: 'No website found, minimal social media presence. Job posting mentions needing to "increase brand awareness" suggesting they know they need marketing help.',
-      confidence_score: 65,
-      urgency: 'medium' as const,
-      outreach_suggestion: 'I noticed your restaurant doesn\'t have much of an online presence yet. We help food businesses create eye-catching video ads and social content that drives real foot traffic. Want to see what we did for similar restaurants?',
-      source: 'Job Board',
-      source_url: null,
-      found_at: new Date().toISOString(),
-      email: null,
-      phone: '+260 96 7654321',
-      company_website: null,
-    },
-  ];
 }

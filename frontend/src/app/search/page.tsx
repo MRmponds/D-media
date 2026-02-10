@@ -12,7 +12,7 @@ export default function SearchPage() {
     location: '',
     problemSignals: ['no_leads', 'bad_ads'],
     customSignals: '',
-    sources: ['reddit', 'google'],
+    sources: ['reddit', 'fiverr', 'gozambiajobs'],
   });
   const [results, setResults] = useState<LeadResult[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
